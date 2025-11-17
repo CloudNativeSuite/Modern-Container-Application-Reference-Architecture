@@ -1,5 +1,6 @@
 init:
 	terraform init --upgrade
+	terraform init -migrate-state
 
 apply: init
 	terraform apply \
@@ -11,5 +12,5 @@ plan: init
 output: init
 	terraform output
 destroy: init
-	terraform destroy
+	terraform destroy -var="table_name=svc-plus-iac-state-dynamodb-lock" -var="region=ap-northeast-1"
 

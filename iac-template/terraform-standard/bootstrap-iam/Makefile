@@ -5,6 +5,7 @@ terraform_user_name ?= sit-ci-runner
 
 init:
 	terraform init --upgrade
+	terraform init -migrate-state
 apply: init
 	terraform apply -auto-approve \
 		-var="account_name=$(account_name)" \
