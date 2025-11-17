@@ -25,55 +25,21 @@ env:
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
   DEPLOY_DRY_RUN: ${{ github.event.inputs.deploy_dry_run || 'true' }}
 
+  # -------------------------------
+  # SMTP settings (明文可接受)
+  # -------------------------------
+  SMTP_HOST: smtp.qq.com
+  SMTP_PORT: 465
+  SMTP_FROM: "XControl Account <manbuzhe2009@qq.com>"
+  SMTP_REPLY_TO: "no-reply@svc.plus"
+  TO_EMAIL: "manbuzhe2009@qq.com"
+
 jobs:
   # -------------------------------------------------------
-  #  1. Bootstrap Stage (Matrix)
-  # -------------------------------------------------------
-  bootstrap:
-    name: "Bootstrap: DynamoDB / S3 / IAM"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - bootstrap-dynamodb
-          - bootstrap-s3
-          - bootstrap-iam
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.5
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform init -upgrade
-
-      - name: Terraform Plan (bootstrap)
-        if: env.DEPLOY_DRY_RUN == 'true'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform plan -no-color
-
-      - name: Terraform Apply (bootstrap)
-        if: env.DEPLOY_DRY_RUN == 'false'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform apply -auto-approve
-
-  # -------------------------------------------------------
-  #  2. Landing Zone Baseline Stage
+  #  1. Landing Zone Baseline Stage
   # -------------------------------------------------------
   landingzone:
     name: "Deploy LandingZone Baseline"
-    needs: bootstrap
     runs-on: ubuntu-latest
 
     steps:
@@ -111,7 +77,7 @@ jobs:
         run: terraform apply -auto-approve
 
   # -------------------------------------------------------
-  #  3. Validation Stage
+  #  2. Validation Stage
   # -------------------------------------------------------
   validation:
     name: "Validate LandingZone Baseline"
@@ -129,7 +95,7 @@ jobs:
             ${{ env.TF_WORKDIR }}/envs/dev-landingzone
 
   # -------------------------------------------------------
-  #  4. Delivery / Notification Stage
+  #  3. Delivery / Notification Stage
   # -------------------------------------------------------
   delivery:
     name: "Delivery: Notify Rollout"
@@ -140,7 +106,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Notify
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}   # <-- 仅密码从 secret
+          SMTP_USERNAME: "manbuzhe2009@qq.com"
         run: |
           echo "📣 Sending LandingZone rollout notification..."
           chmod +x scripts/notifications/notify-landingzone.sh
-          scripts/notifications/notify-landingzone.sh
+          ./scripts/notifications/notify-landingzone.sh

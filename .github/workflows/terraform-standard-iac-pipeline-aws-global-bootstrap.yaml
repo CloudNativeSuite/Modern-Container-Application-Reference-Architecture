@@ -46,17 +46,17 @@ jobs:
 
       - name: Init
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform init -upgrade
+        run: make init
 
       - name: Plan
         if: env.DRY_RUN == 'true'
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform plan -no-color
+        run: make plan
 
       - name: Apply
         if: env.DRY_RUN == 'false'
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform apply -auto-approve
+        run: make apply
 
       - name: Save Outputs
         if: env.DRY_RUN == 'false'
