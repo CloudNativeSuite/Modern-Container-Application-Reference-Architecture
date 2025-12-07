@@ -25,3 +25,25 @@ variable "enable_mfa_enforce" {
   type    = bool
   default = true
 }
+
+variable "enable_identity_center_block" {
+  type    = bool
+  default = true
+}
+
+variable "enable_service_guardrails" {
+  type    = bool
+  default = true
+}
+
+variable "service_allow_list" {
+  type        = list(string)
+  default     = []
+  description = "Additional service action patterns to allow when service guardrails are enabled."
+}
+
+variable "service_deny_list" {
+  type        = list(string)
+  default     = []
+  description = "Additional service action patterns to deny when service guardrails are enabled."
+}

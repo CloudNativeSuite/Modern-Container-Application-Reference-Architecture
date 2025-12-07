@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyIAMIdentityCenterAndIdentityStore",
+      "Effect": "Deny",
+      "Action": [
+        "sso:*",
+        "sso-directory:*",
+        "sso-oauth:*",
+        "identitystore:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenySAMLFederation",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRoleWithSAML",
+      "Resource": "*"
+    }
+  ]
+}
