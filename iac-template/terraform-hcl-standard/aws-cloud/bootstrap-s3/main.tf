@@ -1,5 +1,13 @@
 resource "aws_s3_bucket" "state" {
   bucket = local.bucket_name
+
+  tags = merge(
+    {
+      Name        = local.bucket_name
+      Environment = local.environment
+    },
+    local.tags,
+  )
 }
 
 resource "aws_s3_bucket_versioning" "versioning" {
@@ -18,16 +26,4 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
       sse_algorithm = "AES256"
     }
   }
-}
-
-resource "aws_s3_bucket_tagging" "default" {
-  bucket = aws_s3_bucket.state.id
-
-  tag_set = [for k, v in merge({
-    Name        = local.bucket_name
-    Environment = local.environment
-  }, local.tags) : {
-    key   = k
-    value = v
-  }]
 }
