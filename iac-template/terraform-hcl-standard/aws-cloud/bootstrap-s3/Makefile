@@ -17,5 +17,6 @@ plan: init
 output: init
 	terraform output
 
-destroy: init
-	terraform destroy $(TF_VARS)
+destroy:
+	@test -n "$(bucket_name)" || (echo "bucket_name is required for destroy" && exit 1)
+	aws s3 rb "s3://$(bucket_name)" --force $(if $(region),--region $(region),)
