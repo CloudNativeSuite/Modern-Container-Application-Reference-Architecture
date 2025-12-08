@@ -16,5 +16,6 @@ plan: init
 output: init
 	terraform output
 
-destroy: init
-	terraform destroy $(TF_VARS)
+destroy:
+	@test -n "$(table_name)" || (echo "table_name is required for destroy" && exit 1)
+	aws dynamodb delete-table --table-name "$(table_name)" $(if $(region),--region $(region),)

@@ -65,7 +65,7 @@ jobs:
           aws-region: ap-northeast-1
 
       - name: Load bootstrap config for destroy
-        if: matrix.target == 'bootstrap-s3' && env.DEPLOY_ACTION == 'destroy'
+        if: env.DEPLOY_ACTION == 'destroy'
         run: |
           python -m pip install --quiet pyyaml
           python - <<'PY'
@@ -78,15 +78,15 @@ jobs:
 
           env_path = Path(os.environ["GITHUB_ENV"])
           current_env = env_path.read_text() if env_path.exists() else ""
-          env_path.write_text(current_env + f"BOOTSTRAP_BUCKET={cfg['state']['bucket_name']}\n")
+          env_path.write_text(
+              current_env
+              + f"BOOTSTRAP_BUCKET={cfg['state']['bucket_name']}\n"
+              + f"BOOTSTRAP_REGION={cfg['region']}\n"
+              + f"BOOTSTRAP_DYNAMODB_TABLE={cfg['state']['dynamodb_table_name']}\n"
+              + f"BOOTSTRAP_ROLE_NAME={cfg['iam']['role_name']}\n"
+              + f"BOOTSTRAP_TERRAFORM_USER={cfg['iam']['terraform_user_name']}\n"
+          )
           PY
-
-      - name: Empty bootstrap S3 bucket (per config)
-        if: matrix.target == 'bootstrap-s3' && env.DEPLOY_ACTION == 'destroy'
-        env:
-          AWS_REGION: ap-northeast-1
-        run: |
-          aws s3 rb "s3://${BOOTSTRAP_BUCKET}" --force
 
       - name: Init
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
@@ -105,7 +105,16 @@ jobs:
       - name: Destroy
         if: env.DEPLOY_ACTION == 'destroy'
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: make destroy
+        env:
+          AWS_REGION: ${{ env.BOOTSTRAP_REGION }}
+        run: |
+          if [ "${{ matrix.target }}" = "bootstrap-s3" ]; then
+            make destroy bucket_name=${BOOTSTRAP_BUCKET} region=${BOOTSTRAP_REGION}
+          elif [ "${{ matrix.target }}" = "bootstrap-dynamodb" ]; then
+            make destroy table_name=${BOOTSTRAP_DYNAMODB_TABLE} region=${BOOTSTRAP_REGION}
+          else
+            make destroy role_name=${BOOTSTRAP_ROLE_NAME} terraform_user_name=${BOOTSTRAP_TERRAFORM_USER}
+          fi
 
       - name: Save Outputs
         if: env.DEPLOY_ACTION == 'apply'

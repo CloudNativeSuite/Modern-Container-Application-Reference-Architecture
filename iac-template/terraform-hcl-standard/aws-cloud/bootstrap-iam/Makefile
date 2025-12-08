@@ -15,5 +15,11 @@ plan: init
 	terraform plan $(TF_VARS)
 output: init
 	terraform output
-destroy: init
-	terraform destroy $(TF_VARS)
+
+destroy:
+	@test -n "$(role_name)" || (echo "role_name is required for destroy" && exit 1)
+	@test -n "$(terraform_user_name)" || (echo "terraform_user_name is required for destroy" && exit 1)
+	aws iam delete-user-policy --user-name "$(terraform_user_name)" --policy-name "$(terraform_user_name)-iac-policy" || true
+	aws iam delete-user --user-name "$(terraform_user_name)" || true
+	aws iam detach-role-policy --role-name "$(role_name)" --policy-arn arn:aws:iam::aws:policy/AdministratorAccess || true
+	aws iam delete-role --role-name "$(role_name)" || true
