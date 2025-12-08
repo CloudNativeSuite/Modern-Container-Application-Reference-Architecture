@@ -1,0 +1,19 @@
+project_id: "modern-app-dev"
+project_number: "123456789012"
+name: dev
+environment: dev
+
+region: "us-central1"
+impersonate_service_account: "terraform-deployer@modern-app-dev.iam.gserviceaccount.com"
+logging_bucket: "org-dev-logs"
+shared_vpc_project: "modern-shared-vpc-dev"
+
+labels:
+  environment: dev
+  owner: Platform
+  costcenter: "DEV"
+  project: "modern-container-app"
+
+backend:
+  bucket: svc-plus-iac-state
+  prefix: gcp/dev
