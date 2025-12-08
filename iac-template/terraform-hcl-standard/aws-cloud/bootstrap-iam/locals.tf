@@ -10,7 +10,10 @@ locals {
 }
 
 locals {
-  account = yamldecode(
-    file("${path.root}/../config/accounts/${local.config_account_name}.yaml")
-  )
+  account_file_path = "${path.root}/../config/accounts/${local.config_account_name}.yaml"
+  account = fileexists(local.account_file_path) ? yamldecode(file(local.account_file_path)) : {
+    account_id  = local.bootstrap.account_id
+    environment = local.environment
+    tags        = local.extra_tags
+  }
 }

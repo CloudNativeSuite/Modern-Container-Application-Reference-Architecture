@@ -1,16 +1,17 @@
 region: ap-northeast-1
 environment: bootstrap
 
-account_name: dev
+account_name: xzerolab
+account_id: 950604983695
 
 state:
-  bucket_name: svc-plus-iac-state
-  dynamodb_table_name: svc-plus-iac-state-dynamodb-lock
+  bucket_name: xzerolab-iac-state
+  dynamodb_table_name: xzerolab-iac-state-dynamodb-lock
 
 iam:
-  role_name: TerraformDeployRole-Dev
-  terraform_user_name: sit-ci-runner
+  role_name: XzerolabTerraformDeployRole
+  terraform_user_name: github-ci-runner
 
 tags:
   Owner: Platform
-  Project: modern-container-app
+  Project: CloudNeutral
