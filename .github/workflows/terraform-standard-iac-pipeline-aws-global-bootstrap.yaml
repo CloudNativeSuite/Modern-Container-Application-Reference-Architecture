@@ -1,5 +1,9 @@
 name: Terraform Standard - AWS Account Bootstrap
 
+concurrency:
+  group: terraform-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     paths:
@@ -31,9 +35,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Document Bootstrap Scope
+        run: |
+          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ## Bootstrap scope
+          - IAM: create Terraform deploy role and automation user for DevOps
+          - S3: create remote state bucket (versioned + SSE)
+          - DynamoDB: create state lock table for Terraform CRUD workflows
+          
+          This workflow is designed to be re-runnable for create/update/destroy by restoring and uploading module state.
+          SUMMARY
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
+
+      - name: Restore Terraform state
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: tfstate-${{ matrix.target }}
+          path: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
 
       - name: AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -71,6 +93,18 @@ jobs:
         with:
           name: outputs-${{ matrix.target }}
           path: iac-template/terraform-hcl-standard/aws-cloud/outputs_${{ matrix.target }}.json
+          retention-days: 30
+
+      - name: Save Terraform state
+        if: env.DEPLOY_ACTION != 'plan'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-${{ matrix.target }}
+          path: |
+            ${{ env.TF_WORKDIR }}/${{ matrix.target }}/terraform.tfstate
+            ${{ env.TF_WORKDIR }}/${{ matrix.target }}/terraform.tfstate.backup
+          if-no-files-found: ignore
+          retention-days: 30
 
   aggregate:
     name: "Aggregate Bootstrap Outputs"

@@ -2,6 +2,7 @@
 
 This repository provides bootstrap Terraform modules that must be applied before enabling a Terraform remote backend on AWS.
 It creates:
+- IAM artifacts — a deploy role plus a dedicated DevOps/automation user for Terraform
 - S3 bucket — to store Terraform remote state
 - DynamoDB table — to store Terraform state locks
 
