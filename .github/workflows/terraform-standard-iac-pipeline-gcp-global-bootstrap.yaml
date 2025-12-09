@@ -93,6 +93,7 @@ jobs:
           project_id: ${{ env.BOOTSTRAP_PROJECT_ID }}
 
       - name: Render Terraform variables
+        if: env.DEPLOY_ACTION != 'destroy'
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
         run: |
           cat > bootstrap.auto.tfvars <<EOF
@@ -112,6 +113,7 @@ jobs:
           fi
 
       - name: Init
+        if: env.DEPLOY_ACTION != 'destroy'
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
         run: terraform init -upgrade
 
@@ -125,10 +127,28 @@ jobs:
         working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
         run: terraform apply -auto-approve
 
-      - name: Destroy
+      - name: Destroy (gcloud)
         if: env.DEPLOY_ACTION == 'destroy'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform destroy -auto-approve
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          if [ "$TARGET" = "bootstrap-gcs" ]; then
+            if gcloud storage buckets describe gs://${BOOTSTRAP_BUCKET_NAME} >/dev/null 2>&1; then
+              gcloud storage rm --recursive gs://${BOOTSTRAP_BUCKET_NAME} || true
+              gcloud storage buckets delete gs://${BOOTSTRAP_BUCKET_NAME} --quiet || true
+            else
+              echo "Bucket gs://${BOOTSTRAP_BUCKET_NAME} does not exist; skipping deletion."
+            fi
+          elif [ "$TARGET" = "bootstrap-iam" ]; then
+            SA_EMAIL="${BOOTSTRAP_SA_ID}@${BOOTSTRAP_PROJECT_ID}.iam.gserviceaccount.com"
+            if gcloud iam service-accounts describe "$SA_EMAIL" >/dev/null 2>&1; then
+              gcloud iam service-accounts delete "$SA_EMAIL" --quiet || true
+            else
+              echo "Service account $SA_EMAIL does not exist; skipping deletion."
+            fi
+          fi
 
       - name: Save Outputs
         if: env.DEPLOY_ACTION == 'apply'
