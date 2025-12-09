@@ -142,6 +142,7 @@ jobs:
 
       - name: Merge Outputs
         run: |
+          shopt -s globstar nullglob
           echo "{" > final_bootstrap_outputs.json
           f=true
           for x in outputs/**/outputs_*.json; do
