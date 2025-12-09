@@ -1,0 +1,67 @@
+name: Terraform Standard - IAC Pipeline (Alicloud Account/VPC Matrix)
+
+on:
+  push:
+    paths:
+      - 'iac-template/terraform-hcl-standard/ali-cloud/modules/vpc/**'
+      - 'iac-template/terraform-hcl-standard/ali-cloud/modules/ram/**'
+      - 'iac-template/terraform-hcl-standard/ali-cloud/envs/dev/**'
+      - '.github/workflows/terraform-standard-iac-pipeline-alicloud-account-matrix.yaml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: choice
+        options: ['true', 'false']
+        default: 'true'
+
+env:
+  BASE_DIR: iac-template/terraform-hcl-standard/ali-cloud/envs
+  DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+  ALICLOUD_REGION: ${{ secrets.ALICLOUD_REGION }}
+
+jobs:
+  terraform:
+    name: "${{ matrix.env }} :: pipeline (dry_run=${{ inputs.dry_run }})"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.51.0
+
+      - name: Export Alicloud credentials
+        run: |
+          echo "ALICLOUD_ACCESS_KEY=${{ secrets.ALICLOUD_ACCESS_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_SECRET_KEY=${{ secrets.ALICLOUD_SECRET_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_REGION=${ALICLOUD_REGION:-cn-hangzhou}" >> "$GITHUB_ENV"
+          echo "TF_VAR_rds_password=${{ secrets.ALICLOUD_RDS_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_redis_password=${{ secrets.ALICLOUD_REDIS_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Init
+        run: terraform -chdir=${{ env.BASE_DIR }}/${{ matrix.env }} init -upgrade
+
+      - name: Plan
+        run: terraform -chdir=${{ env.BASE_DIR }}/${{ matrix.env }} plan
+
+      - name: Apply
+        if: ${{ env.DRY_RUN == 'false' }}
+        run: terraform -chdir=${{ env.BASE_DIR }}/${{ matrix.env }} apply -auto-approve
+
+      - name: Skip Apply (dry-run)
+        if: ${{ env.DRY_RUN == 'true' }}
+        run: echo "Dry run enabled → skip apply step."
+
+      - name: Output
+        if: ${{ env.DRY_RUN == 'false' }}
+        run: terraform -chdir=${{ env.BASE_DIR }}/${{ matrix.env }} output -json

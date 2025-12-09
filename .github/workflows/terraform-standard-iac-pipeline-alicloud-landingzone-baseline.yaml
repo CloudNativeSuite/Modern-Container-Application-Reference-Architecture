@@ -1,0 +1,104 @@
+name: Terraform Standard - Alicloud Global LandingZone Baseline
+
+on:
+  push:
+    paths:
+      - 'iac-template/terraform-hcl-standard/ali-cloud/**'
+      - '.github/workflows/terraform-standard-iac-pipeline-alicloud-landingzone-baseline.yaml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_action:
+        description: "Deployment action"
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+      deploy_dry_run:
+        description: "Dry-run mode"
+        type: choice
+        options: ['true', 'false']
+        default: 'true'
+
+env:
+  TF_WORKDIR: iac-template/terraform-hcl-standard/ali-cloud
+  DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
+  ALICLOUD_REGION: ${{ secrets.ALICLOUD_REGION }}
+
+jobs:
+  landingzone:
+    name: "Deploy LandingZone Baseline"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Export Alicloud credentials
+        run: |
+          echo "ALICLOUD_ACCESS_KEY=${{ secrets.ALICLOUD_ACCESS_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_SECRET_KEY=${{ secrets.ALICLOUD_SECRET_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_REGION=${ALICLOUD_REGION:-cn-hangzhou}" >> "$GITHUB_ENV"
+          echo "TF_VAR_rds_password=${{ secrets.ALICLOUD_RDS_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_redis_password=${{ secrets.ALICLOUD_REDIS_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Terraform Init (LandingZone)
+        working-directory: ${{ env.TF_WORKDIR }}/envs/dev
+        run: terraform init -upgrade
+
+      - name: Terraform Plan (LandingZone)
+        id: tfplan
+        if: env.DEPLOY_ACTION == 'plan'
+        working-directory: ${{ env.TF_WORKDIR }}/envs/dev
+        run: terraform plan -no-color > plan_output.txt
+
+      - name: Upload LandingZone Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alicloud-landingzone-plan
+          path: ${{ env.TF_WORKDIR }}/envs/dev/plan_output.txt
+
+      - name: Terraform Apply (LandingZone)
+        if: env.DEPLOY_ACTION == 'apply'
+        working-directory: ${{ env.TF_WORKDIR }}/envs/dev
+        run: terraform apply -auto-approve
+
+      - name: Terraform Destroy (LandingZone)
+        if: env.DEPLOY_ACTION == 'destroy'
+        working-directory: ${{ env.TF_WORKDIR }}/envs/dev
+        run: terraform destroy -auto-approve
+
+  validation:
+    name: "Validate LandingZone Baseline"
+    needs: landingzone
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Validation Checks
+        run: |
+          echo "⚙️ Running LandingZone baseline validation..."
+          chmod +x scripts/validation/validate-landingzone.sh
+          scripts/validation/validate-landingzone.sh \
+            ${{ env.TF_WORKDIR }}/envs/dev
+
+  delivery:
+    name: "Delivery: Notify Rollout"
+    needs: validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Notify
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_USERNAME: "manbuzhe2009@qq.com"
+        run: |
+          echo "📣 Sending Alicloud LandingZone rollout notification..."
+          chmod +x scripts/notifications/notify-landingzone.sh
+          ./scripts/notifications/notify-landingzone.sh

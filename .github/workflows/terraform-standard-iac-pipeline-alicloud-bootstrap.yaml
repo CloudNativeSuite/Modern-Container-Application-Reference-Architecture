@@ -1,0 +1,115 @@
+name: Terraform Standard - Alicloud Account Bootstrap
+
+concurrency:
+  group: terraform-alicloud-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    paths:
+      - 'iac-template/terraform-hcl-standard/ali-cloud/bootstrap/**'
+      - '.github/workflows/terraform-standard-iac-pipeline-alicloud-bootstrap.yaml'
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy_action:
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+
+env:
+  TF_WORKDIR: iac-template/terraform-hcl-standard/ali-cloud/bootstrap
+  DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
+  ALICLOUD_REGION: ${{ secrets.ALICLOUD_REGION }}
+
+jobs:
+  bootstrap:
+    name: "Bootstrap ${{ matrix.target }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target: [state, lock, identity]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Document Bootstrap Scope (Alicloud)
+        run: |
+          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ## Alicloud bootstrap scope
+          - state: provision OSS bucket for remote state storage
+          - lock: create Table Store instance/table for Terraform state locking
+          - identity: provision RAM role/user plus access keys for automation
+
+          Resource names and defaults follow iac-template/terraform-hcl-standard/ali-cloud/bootstrap.
+          SUMMARY
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Export Alicloud credentials and variables
+        run: |
+          echo "ALICLOUD_ACCESS_KEY=${{ secrets.ALICLOUD_ACCESS_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_SECRET_KEY=${{ secrets.ALICLOUD_SECRET_KEY }}" >> "$GITHUB_ENV"
+          echo "ALICLOUD_REGION=${ALICLOUD_REGION:-cn-hangzhou}" >> "$GITHUB_ENV"
+          echo "TF_VAR_state_bucket=${{ secrets.ALICLOUD_STATE_BUCKET }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_account_id=${{ secrets.ALICLOUD_ACCOUNT_ID }}" >> "$GITHUB_ENV"
+
+      - name: Terraform Init
+        run: terraform -chdir=${{ env.TF_WORKDIR }}/${{ matrix.target }} init -upgrade
+
+      - name: Terraform Plan
+        if: env.DEPLOY_ACTION == 'plan'
+        run: terraform -chdir=${{ env.TF_WORKDIR }}/${{ matrix.target }} plan -no-color
+
+      - name: Terraform Apply
+        if: env.DEPLOY_ACTION == 'apply'
+        run: terraform -chdir=${{ env.TF_WORKDIR }}/${{ matrix.target }} apply -auto-approve
+
+      - name: Terraform Destroy
+        if: env.DEPLOY_ACTION == 'destroy'
+        run: terraform -chdir=${{ env.TF_WORKDIR }}/${{ matrix.target }} destroy -auto-approve
+
+      - name: Save Outputs
+        if: env.DEPLOY_ACTION == 'apply'
+        run: terraform -chdir=${{ env.TF_WORKDIR }}/${{ matrix.target }} output -json > ../outputs_${{ matrix.target }}.json
+
+      - uses: actions/upload-artifact@v4
+        if: env.DEPLOY_ACTION == 'apply'
+        with:
+          name: outputs-${{ matrix.target }}
+          path: iac-template/terraform-hcl-standard/ali-cloud/outputs_${{ matrix.target }}.json
+          retention-days: 30
+
+  aggregate:
+    name: "Aggregate Bootstrap Outputs"
+    runs-on: ubuntu-latest
+    needs: bootstrap
+
+    if: ${{ github.event.inputs.deploy_action == 'apply' }}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./outputs
+
+      - name: Merge Outputs
+        run: |
+          shopt -s globstar nullglob
+          echo "{" > final_bootstrap_outputs.json
+          f=true
+          for x in outputs/**/outputs_*.json; do
+            k=$(basename $x .json | sed 's/outputs_//')
+            [ "$f" = true ] && f=false || echo "," >> final_bootstrap_outputs.json
+            echo "\"$k\": $(cat $x)" >> final_bootstrap_outputs.json
+          done
+          echo "}" >> final_bootstrap_outputs.json
+
+      - run: cat final_bootstrap_outputs.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alicloud-bootstrap-final-output
+          path: final_bootstrap_outputs.json
