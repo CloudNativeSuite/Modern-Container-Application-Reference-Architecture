@@ -1,4 +1,4 @@
-# envs/dev-ec2/Makefile
+# instance/ec2/Makefile
 
 render:
 	python ../../render_provider_backend.py

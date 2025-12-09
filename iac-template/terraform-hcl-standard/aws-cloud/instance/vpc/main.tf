@@ -8,7 +8,7 @@ locals {
   )
 }
 
-module "dev_vpc" {
+module "vpc" {
   source = "../../modules/vpc"
 
   vpc_cidr        = local.vpc_conf.vpc_cidr

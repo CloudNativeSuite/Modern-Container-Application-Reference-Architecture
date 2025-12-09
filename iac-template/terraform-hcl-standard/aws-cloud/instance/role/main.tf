@@ -5,7 +5,7 @@ locals {
 }
 
 
-data "aws_iam_policy_document" "dev_assume" {
+data "aws_iam_policy_document" "assume" {
   statement {
     actions = ["sts:AssumeRole"]
 
@@ -16,11 +16,11 @@ data "aws_iam_policy_document" "dev_assume" {
   }
 }
 
-module "dev_role" {
+module "role" {
   source = "../../modules/iam"
 
-  name               = "dev-app-role"
-  assume_role_policy = data.aws_iam_policy_document.dev_assume.json
+  name               = "app-role"
+  assume_role_policy = data.aws_iam_policy_document.assume.json
 
   tags = local.account.tags
 }
