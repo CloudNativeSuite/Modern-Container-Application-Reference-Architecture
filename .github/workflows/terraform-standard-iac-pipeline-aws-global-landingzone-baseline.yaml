@@ -24,15 +24,6 @@ env:
   TF_WORKDIR: iac-template/terraform-hcl-standard/aws-cloud
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
 
-  # -------------------------------
-  # SMTP settings (明文可接受)
-  # -------------------------------
-  SMTP_HOST: smtp.qq.com
-  SMTP_PORT: 465
-  SMTP_FROM: "XControl Account <manbuzhe2009@qq.com>"
-  SMTP_REPLY_TO: "no-reply@svc.plus"
-  TO_EMAIL: "manbuzhe2009@qq.com"
-
 jobs:
   # -------------------------------------------------------
   #  1. Landing Zone Baseline Stage
