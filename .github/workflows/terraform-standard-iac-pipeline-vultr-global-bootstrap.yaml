@@ -1,4 +1,4 @@
-name: Terraform Standard - Vultr Account Bootstrap
+name: Terraform Standard - Vultr Global Bootstrap
 
 concurrency:
   group: terraform-vultr-bootstrap-${{ github.ref }}
@@ -9,6 +9,7 @@ on:
     paths:
       - 'iac-template/terraform-hcl-standard/vultr-vps/bootstrap-object-storage/**'
       - 'iac-template/terraform-hcl-standard/vultr-vps/bootstrap-iam/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/config/**'
       - '.github/workflows/terraform-standard-iac-pipeline-vultr-global-bootstrap.yaml'
   workflow_dispatch:
     inputs:
@@ -18,12 +19,12 @@ on:
         default: plan
 
 env:
-  TF_WORKDIR: iac-template/terraform-hcl-standard/vultr-vps
+  TF_ROOT: iac-template/terraform-hcl-standard/vultr-vps
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
 
 jobs:
   bootstrap:
-    name: "Bootstrap Vultr state backends & identity"
+    name: "Bootstrap Vultr backend & provider"
     runs-on: ubuntu-latest
 
     strategy:
@@ -33,112 +34,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Document Bootstrap Scope
-        run: |
-          cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
-          ## Vultr bootstrap scope
-          - Object Storage: create S3-compatible bucket + API keys for Terraform state
-          - IAM: create limited-access user and upload SSH public key
-
-          Variables such as bucket name, region and API keys are sourced from GitHub secrets.
-          SUMMARY
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
 
-      - name: Export shared credentials
+      - name: Export Vultr API key
         run: echo "TF_VAR_vultr_api_key=${{ secrets.VULTR_API_KEY }}" >> "$GITHUB_ENV"
 
-      - name: Init
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        env:
-          TF_VAR_region: ${{ secrets.VULTR_REGION }}
-          TF_VAR_cluster_id: ${{ secrets.VULTR_OBJECT_STORAGE_CLUSTER_ID }}
-          TF_VAR_bucket: ${{ secrets.VULTR_STATE_BUCKET }}
-          TF_VAR_seed_secret: ${{ secrets.VULTR_STATE_SEED_SECRET }}
-          TF_VAR_user_email: ${{ secrets.VULTR_BOOTSTRAP_USER_EMAIL }}
-          TF_VAR_user_password: ${{ secrets.VULTR_BOOTSTRAP_USER_PASSWORD }}
-          TF_VAR_public_key: ${{ secrets.VULTR_BOOTSTRAP_PUBLIC_KEY }}
-        run: terraform init -upgrade
+      - name: Select Terraform workdir
+        run: echo "TF_WORKDIR=${TF_ROOT}/${{ matrix.target }}" >> "$GITHUB_ENV"
 
-      - name: Plan
-        if: env.DEPLOY_ACTION == 'plan'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        env:
-          TF_VAR_region: ${{ secrets.VULTR_REGION }}
-          TF_VAR_cluster_id: ${{ secrets.VULTR_OBJECT_STORAGE_CLUSTER_ID }}
-          TF_VAR_bucket: ${{ secrets.VULTR_STATE_BUCKET }}
-          TF_VAR_seed_secret: ${{ secrets.VULTR_STATE_SEED_SECRET }}
-          TF_VAR_user_email: ${{ secrets.VULTR_BOOTSTRAP_USER_EMAIL }}
-          TF_VAR_user_password: ${{ secrets.VULTR_BOOTSTRAP_USER_PASSWORD }}
-          TF_VAR_public_key: ${{ secrets.VULTR_BOOTSTRAP_PUBLIC_KEY }}
-        run: terraform plan
+      - name: Terraform Init
+        run: terraform -chdir=$TF_WORKDIR init
 
-      - name: Apply
-        if: env.DEPLOY_ACTION == 'apply'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        env:
-          TF_VAR_region: ${{ secrets.VULTR_REGION }}
-          TF_VAR_cluster_id: ${{ secrets.VULTR_OBJECT_STORAGE_CLUSTER_ID }}
-          TF_VAR_bucket: ${{ secrets.VULTR_STATE_BUCKET }}
-          TF_VAR_seed_secret: ${{ secrets.VULTR_STATE_SEED_SECRET }}
-          TF_VAR_user_email: ${{ secrets.VULTR_BOOTSTRAP_USER_EMAIL }}
-          TF_VAR_user_password: ${{ secrets.VULTR_BOOTSTRAP_USER_PASSWORD }}
-          TF_VAR_public_key: ${{ secrets.VULTR_BOOTSTRAP_PUBLIC_KEY }}
-        run: terraform apply -auto-approve
-
-      - name: Destroy
-        if: env.DEPLOY_ACTION == 'destroy'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        env:
-          TF_VAR_region: ${{ secrets.VULTR_REGION }}
-          TF_VAR_cluster_id: ${{ secrets.VULTR_OBJECT_STORAGE_CLUSTER_ID }}
-          TF_VAR_bucket: ${{ secrets.VULTR_STATE_BUCKET }}
-          TF_VAR_seed_secret: ${{ secrets.VULTR_STATE_SEED_SECRET }}
-          TF_VAR_user_email: ${{ secrets.VULTR_BOOTSTRAP_USER_EMAIL }}
-          TF_VAR_user_password: ${{ secrets.VULTR_BOOTSTRAP_USER_PASSWORD }}
-          TF_VAR_public_key: ${{ secrets.VULTR_BOOTSTRAP_PUBLIC_KEY }}
-        run: terraform destroy -auto-approve
-
-      - name: Save Outputs
-        if: env.DEPLOY_ACTION == 'apply'
-        working-directory: ${{ env.TF_WORKDIR }}/${{ matrix.target }}
-        run: terraform output -json > ../outputs_${{ matrix.target }}.json
-
-      - uses: actions/upload-artifact@v4
-        if: env.DEPLOY_ACTION == 'apply'
-        with:
-          name: vultr-${{ matrix.target }}-outputs
-          path: iac-template/terraform-hcl-standard/vultr-vps/outputs_${{ matrix.target }}.json
-          retention-days: 30
-
-  aggregate:
-    name: "Aggregate Vultr Bootstrap Outputs"
-    runs-on: ubuntu-latest
-    needs: bootstrap
-
-    if: ${{ github.event.inputs.deploy_action == 'apply' }}
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: ./outputs
-
-      - name: Merge Outputs
-        run: |
-          echo "{" > vultr_bootstrap_outputs.json
-          first=true
-          for x in outputs/**/outputs_*.json; do
-            key=$(basename "$x" .json | sed 's/outputs_//')
-            [ "$first" = true ] && first=false || echo "," >> vultr_bootstrap_outputs.json
-            echo "\"$key\": $(cat "$x")" >> vultr_bootstrap_outputs.json
-          done
-          echo "}" >> vultr_bootstrap_outputs.json
-
-      - run: cat vultr_bootstrap_outputs.json
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vultr-bootstrap-final-output
-          path: vultr_bootstrap_outputs.json
+      - name: Terraform ${{ env.DEPLOY_ACTION }}
+        run: terraform -chdir=$TF_WORKDIR $DEPLOY_ACTION -input=false

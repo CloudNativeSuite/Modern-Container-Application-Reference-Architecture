@@ -1,0 +1,74 @@
+name: Terraform Standard - Vultr Global Resources Matrix
+
+concurrency:
+  group: terraform-vultr-resources-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    paths:
+      - 'iac-template/terraform-hcl-standard/vultr-vps/envs/dev/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/modules/compute/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/modules/storage/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/modules/data_store/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/config/**'
+      - '.github/workflows/terraform-standard-iac-pipeline-vultr-global-resources-matrix.yaml'
+  workflow_dispatch:
+    inputs:
+      deploy_action:
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+
+env:
+  TF_ROOT: iac-template/terraform-hcl-standard/vultr-vps/envs
+  DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
+
+jobs:
+  resources:
+    name: "${{ matrix.environment }} :: ${{ matrix.region }} :: ${{ matrix.instance_type }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev]
+        region: [ewr, lax, sin]
+        instance_type: [cpu, gpu]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Export Vultr API key
+        run: echo "TF_VAR_vultr_api_key=${{ secrets.VULTR_API_KEY }}" >> "$GITHUB_ENV"
+
+      - name: Select Terraform workdir
+        run: echo "TF_WORKDIR=${TF_ROOT}/${{ matrix.environment }}" >> "$GITHUB_ENV"
+
+      - name: Terraform Init
+        env:
+          TF_VAR_region: ${{ matrix.region }}
+          TF_VAR_instance_type: ${{ matrix.instance_type }}
+        run: terraform -chdir=$TF_WORKDIR init
+
+      - name: Terraform ${{ env.DEPLOY_ACTION }}
+        env:
+          TF_VAR_region: ${{ matrix.region }}
+          TF_VAR_instance_type: ${{ matrix.instance_type }}
+        run: terraform -chdir=$TF_WORKDIR $DEPLOY_ACTION -input=false
+
+      - name: Capture resource outputs
+        if: env.DEPLOY_ACTION == 'apply'
+        run: terraform -chdir=$TF_WORKDIR output -json > vultr-resources-${{ matrix.environment }}-${{ matrix.region }}-${{ matrix.instance_type }}.json
+
+      - name: Upload resource outputs
+        if: env.DEPLOY_ACTION == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vultr-resources-${{ matrix.environment }}-${{ matrix.region }}-${{ matrix.instance_type }}
+          path: vultr-resources-${{ matrix.environment }}-${{ matrix.region }}-${{ matrix.instance_type }}.json
+          retention-days: 7
