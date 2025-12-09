@@ -1,6 +1,6 @@
 # GCP Cloud Terraform Standard
 
-该目录提供与 `aws-cloud` 模板一一对应的 GCP 版本，用于在 GCP 上快速引导基础设施。结构与 AWS 目录保持一致，包括引导阶段 (bootstrap)、环境示例 (envs) 与模块库 (modules)。
+该目录提供与 `aws-cloud` 模板一一对应的 GCP 版本，用于在 GCP 上快速引导基础设施。结构与 AWS 目录保持一致，包括引导阶段 (bootstrap)、实例示例 (instance) 与模块库 (modules)。
 
 ## 模板映射
 - **bootstrap/identity → IAM**：创建基础服务账号与自定义角色，替代 AWS IAM 角色与策略。
@@ -22,10 +22,10 @@
 ## 使用方式
 1. 在 `templates/backend.tf` 中配置远端状态（GCS 存储桶）。
 2. 在 `templates/provider.tf` 中设置 `project`、`region`、`credentials` 等参数。
-3. 按需修改 `envs` 下的环境示例，执行：
+3. 按需修改 `instance` 下的实例示例，执行：
    ```bash
-   terraform -chdir=envs/dev init
-   terraform -chdir=envs/dev apply
+   terraform -chdir=instance/vpc init
+   terraform -chdir=instance/vpc apply
    ```
 
 本目录仅新增 GCP 代码，不改动现有 AWS 模板。
