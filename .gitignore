@@ -39,6 +39,9 @@ coverage.xml
 .terraform/
 *.tfstate
 *.tfstate.*
+# Generated Terraform provider/backend files for AWS cloud envs
+iac-template/terraform-hcl-standard/aws-cloud/envs/*/provider.tf
+iac-template/terraform-hcl-standard/aws-cloud/envs/*/backend.tf
 
 # Ansible
 *.retry

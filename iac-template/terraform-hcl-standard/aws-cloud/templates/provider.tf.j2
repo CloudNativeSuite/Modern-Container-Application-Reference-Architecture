@@ -1,0 +1,20 @@
+{% set terraform = provider.terraform %}
+terraform {
+  required_version = "{{ terraform.required_version }}"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "{{ terraform.aws_provider_version }}"
+    }
+  }
+}
+
+provider "aws" {
+  region = "{{ provider.region }}"{% if provider.assume_role_arn %}
+  assume_role {
+    role_arn     = "{{ provider.assume_role_arn }}"
+    session_name = "{{ provider.session_name }}"
+  }
+{% endif %}
+}

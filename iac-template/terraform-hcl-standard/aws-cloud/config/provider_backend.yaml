@@ -1,0 +1,60 @@
+defaults:
+  terraform_required_version: ">= 1.2"
+  aws_provider_version: "~> 5.92.0"
+  session_name: "TerraformDevSession"
+
+modules:
+  dev:
+    account: dev
+    backend:
+      key: "account/dev/core/terraform.tfstate"
+
+  dev-alb:
+    account: dev
+    backend:
+      key: "account/dev/alb/terraform.tfstate"
+
+  dev-ec2:
+    account: dev
+    backend:
+      key: "account/dev/ec2/terraform.tfstate"
+
+  dev-kafka:
+    account: dev
+    backend:
+      key: "account/dev/kafka/terraform.tfstate"
+
+  dev-landingzone:
+    account: dev
+    backend:
+      key: "bootstrap/dev-landingzone/terraform.tfstate"
+
+  dev-nlb:
+    account: dev
+    backend:
+      key: "account/dev/nlb/terraform.tfstate"
+
+  dev-object:
+    account: dev
+    backend:
+      key: "account/dev/s3/terraform.tfstate"
+
+  dev-rds:
+    account: dev
+    backend:
+      key: "account/dev/rds/terraform.tfstate"
+
+  dev-redis:
+    account: dev
+    backend:
+      key: "account/dev/redis/terraform.tfstate"
+
+  dev-role:
+    account: dev
+    backend:
+      key: "account/dev/iam/terraform.tfstate"
+
+  dev-vpc:
+    account: dev
+    backend:
+      key: "account/dev/vpc/terraform.tfstate"
