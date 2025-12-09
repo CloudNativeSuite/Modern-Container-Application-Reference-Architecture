@@ -3,9 +3,8 @@
 该目录提供与 `aws-cloud` 模板一一对应的 GCP 版本，用于在 GCP 上快速引导基础设施。结构与 AWS 目录保持一致，包括引导阶段 (bootstrap)、环境示例 (envs) 与模块库 (modules)。
 
 ## 模板映射
-- **bootstrap-dynamodb → Firestore**：使用 Firestore（Datastore 模式）作为无服务器键值存储。
 - **bootstrap-iam → IAM**：创建基础服务账号与自定义角色，替代 AWS IAM 角色与策略。
-- **bootstrap-s3 → Cloud Storage**：创建 GCS 存储桶并启用版本化，对应 AWS S3。
+- **bootstrap-gcs → Cloud Storage**：创建启用版本化和 generation-based locking 的 GCS 存储桶，对应 AWS S3 + DynamoDB 锁表。
 - **modules**：保留原始模块命名（alb、nlb、vpc 等），内部实现改为 GCP 资源：
   - `alb`/`nlb`：使用 Google HTTP(S) / TCP 负载均衡。
   - `ec2`：映射到 Compute Engine 实例或 MIG。

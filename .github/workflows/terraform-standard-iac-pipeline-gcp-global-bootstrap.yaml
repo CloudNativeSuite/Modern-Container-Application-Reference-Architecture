@@ -7,9 +7,8 @@ concurrency:
 on:
   push:
     paths:
-      - 'iac-template/terraform-hcl-standard/gcp-cloud/bootstrap-s3/**'
+      - 'iac-template/terraform-hcl-standard/gcp-cloud/bootstrap-gcs/**'
       - 'iac-template/terraform-hcl-standard/gcp-cloud/bootstrap-iam/**'
-      - 'iac-template/terraform-hcl-standard/gcp-cloud/bootstrap-dynamodb/**'
       - '.github/workflows/terraform-standard-iac-pipeline-gcp-global-bootstrap.yaml'
   pull_request:
   workflow_dispatch:
@@ -30,7 +29,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [bootstrap-dynamodb, bootstrap-s3, bootstrap-iam]
+        target: [bootstrap-gcs, bootstrap-iam]
 
     steps:
       - uses: actions/checkout@v4
@@ -39,8 +38,7 @@ jobs:
         run: |
           cat <<'SUMMARY' >> "$GITHUB_STEP_SUMMARY"
           ## Bootstrap scope (GCP)
-          - Cloud Storage: create remote state bucket (versioned + uniform access)
-          - Firestore: enable Datastore mode database for state locking and metadata
+          - Cloud Storage: create remote state bucket (versioned + uniform access + generation-based locking)
           - IAM: create Terraform bootstrap service account and bind elevated roles
 
           Resource names and locations follow iac-template/terraform-hcl-standard/gcp-cloud/config/accounts/bootstrap.yaml.
@@ -76,7 +74,6 @@ jobs:
               + f"BOOTSTRAP_PROJECT_ID={cfg['project_id']}\n"
               + f"BOOTSTRAP_BUCKET_NAME={cfg['state']['bucket_name']}\n"
               + f"BOOTSTRAP_BUCKET_LOCATION={cfg['state'].get('bucket_location', 'US')}\n"
-              + f"BOOTSTRAP_FIRESTORE_LOCATION={cfg['state'].get('firestore_location', 'us-central')}\n"
               + f"BOOTSTRAP_SA_ID={cfg['iam'].get('service_account_id', 'terraform-bootstrap')}\n"
               + f"BOOTSTRAP_SA_ROLES={json.dumps(cfg['iam'].get('service_account_roles', []))}\n"
           )
@@ -102,14 +99,10 @@ jobs:
           project_id = "${BOOTSTRAP_PROJECT_ID}"
           EOF
 
-          if [ "${{ matrix.target }}" = "bootstrap-s3" ]; then
+          if [ "${{ matrix.target }}" = "bootstrap-gcs" ]; then
             cat >> bootstrap.auto.tfvars <<EOF
           bucket_name = "${BOOTSTRAP_BUCKET_NAME}"
           location    = "${BOOTSTRAP_BUCKET_LOCATION}"
-          EOF
-          elif [ "${{ matrix.target }}" = "bootstrap-dynamodb" ]; then
-            cat >> bootstrap.auto.tfvars <<EOF
-          location = "${BOOTSTRAP_FIRESTORE_LOCATION}"
           EOF
           elif [ "${{ matrix.target }}" = "bootstrap-iam" ]; then
             cat >> bootstrap.auto.tfvars <<EOF

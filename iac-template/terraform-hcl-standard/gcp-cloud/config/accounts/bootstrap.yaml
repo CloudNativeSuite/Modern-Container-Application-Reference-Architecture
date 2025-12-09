@@ -4,7 +4,6 @@ environment: bootstrap
 state:
   bucket_name: svc-plus-iac-state
   bucket_location: US
-  firestore_location: us-central
 
 iam:
   service_account_id: terraform-bootstrap
