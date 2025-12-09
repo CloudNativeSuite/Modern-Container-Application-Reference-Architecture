@@ -1,3 +1,6 @@
+render:
+	python ../../render_provider_backend.py
+
 init:
 	terraform init --upgrade
 

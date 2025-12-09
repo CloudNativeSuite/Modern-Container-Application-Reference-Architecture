@@ -1,3 +1,6 @@
+render:
+	python ../../render_provider_backend.py
+
 init:
 	terraform init --upgrade
 
@@ -9,3 +12,4 @@ apply:
 
 destroy:
 	terraform destroy -auto-approve
+
