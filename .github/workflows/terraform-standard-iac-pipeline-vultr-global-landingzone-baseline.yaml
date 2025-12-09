@@ -1,12 +1,15 @@
 name: Terraform Standard - Vultr Global LandingZone Baseline
 
+concurrency:
+  group: terraform-vultr-landingzone-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     paths:
-      - 'iac-template/terraform-hcl-standard/vultr-vps/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/modules/vpc/**'
+      - 'iac-template/terraform-hcl-standard/vultr-vps/config/**'
       - '.github/workflows/terraform-standard-iac-pipeline-vultr-global-landingzone-baseline.yaml'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       deploy_action:
@@ -16,12 +19,12 @@ on:
         default: plan
 
 env:
-  TF_WORKDIR: iac-template/terraform-hcl-standard/vultr-vps
+  TF_ROOT: iac-template/terraform-hcl-standard/vultr-vps/modules/vpc
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
 
 jobs:
   landingzone:
-    name: "Deploy Vultr LandingZone Baseline"
+    name: "Baseline VPC + Firewall + SSH keys"
     runs-on: ubuntu-latest
 
     steps:
@@ -31,27 +34,23 @@ jobs:
         with:
           terraform_version: 1.9.5
 
-      - name: Export Vultr credentials
+      - name: Export Vultr API key
         run: echo "TF_VAR_vultr_api_key=${{ secrets.VULTR_API_KEY }}" >> "$GITHUB_ENV"
 
-      - name: Terraform Init (LandingZone)
-        run: terraform -chdir=${{ env.TF_WORKDIR }}/envs/dev init -upgrade
+      - name: Terraform Init
+        run: terraform -chdir=$TF_ROOT init
 
-      - name: Terraform Plan (LandingZone)
-        if: env.DEPLOY_ACTION == 'plan'
-        run: terraform -chdir=${{ env.TF_WORKDIR }}/envs/dev plan -no-color > plan_output.txt
+      - name: Terraform ${{ env.DEPLOY_ACTION }}
+        run: terraform -chdir=$TF_ROOT $DEPLOY_ACTION -input=false
 
-      - name: Upload LandingZone Plan Artifact
-        if: env.DEPLOY_ACTION == 'plan'
+      - name: Capture LandingZone outputs
+        if: env.DEPLOY_ACTION == 'apply'
+        run: terraform -chdir=$TF_ROOT output -json > landingzone-baseline-outputs.json
+
+      - name: Upload LandingZone outputs
+        if: env.DEPLOY_ACTION == 'apply'
         uses: actions/upload-artifact@v4
         with:
-          name: vultr-landingzone-plan
-          path: ${{ env.TF_WORKDIR }}/envs/dev/plan_output.txt
-
-      - name: Terraform Apply (LandingZone)
-        if: env.DEPLOY_ACTION == 'apply'
-        run: terraform -chdir=${{ env.TF_WORKDIR }}/envs/dev apply -auto-approve
-
-      - name: Terraform Destroy (LandingZone)
-        if: env.DEPLOY_ACTION == 'destroy'
-        run: terraform -chdir=${{ env.TF_WORKDIR }}/envs/dev destroy -auto-approve
+          name: vultr-landingzone-baseline-outputs
+          path: landingzone-baseline-outputs.json
+          retention-days: 7
