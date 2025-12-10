@@ -17,6 +17,7 @@ env:
   BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/envs
   AWS_REGION: ap-northeast-1
   DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+  AWS_ROLE_ARN: arn:aws:iam::950604983695:role/IacDeployRole
 
 jobs:
   terraform:
@@ -46,6 +47,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: github-actions
+          role-skip-session-tagging: true
 
       - name: Init
         working-directory: ${{ env.BASE_DIR }}/${{ matrix.env }}

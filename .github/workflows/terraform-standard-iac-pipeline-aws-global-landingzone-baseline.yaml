@@ -23,6 +23,7 @@ on:
 env:
   TF_WORKDIR: iac-template/terraform-hcl-standard/aws-cloud
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
+  AWS_ROLE_ARN: arn:aws:iam::950604983695:role/IacDeployRole
 
 jobs:
   # -------------------------------------------------------
@@ -45,6 +46,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: github-actions
+          role-skip-session-tagging: true
 
       - name: Terraform Init (LandingZone)
         working-directory: ${{ env.TF_WORKDIR }}/envs/dev-landingzone

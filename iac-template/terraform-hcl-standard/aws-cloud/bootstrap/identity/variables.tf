@@ -79,3 +79,9 @@ variable "bootstrap_config_path" {
   type        = string
   default     = "../../config/accounts/bootstrap.yaml"
 }
+
+variable "managed_policy_arns" {
+  description = "List of managed policy ARNs to attach to the Terraform deploy role"
+  type        = list(string)
+  default     = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+}

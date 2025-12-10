@@ -88,6 +88,11 @@ terraform init
 terraform apply \
   -var="account_name=dev" \
   -var="role_name=TerraformDeployRole-Dev"
+
+By default the deploy role attaches the AWS managed **AdministratorAccess** policy so
+subsequent Terraform runs can create infrastructure resources (e.g., VPCs, EIPs). You
+can override this by passing `-var='managed_policy_arns=["arn:aws:iam::aws:policy/PowerUserAccess"]'`
+or another list of managed policy ARNs when tighter permissions are required.
 ```
 
 ## 5. Use in Terraform Backend
