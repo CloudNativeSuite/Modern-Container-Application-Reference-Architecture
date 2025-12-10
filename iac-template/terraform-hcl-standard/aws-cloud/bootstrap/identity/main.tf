@@ -2,13 +2,15 @@
 # IAM Role: Terraform Deploy Role
 # ----------------------------------------
 data "aws_iam_policy_document" "terraform_deploy_assume_role" {
-  source_json = templatefile(
-    "${path.module}/policies/terraform-deploy-assume-role.json",
-    {
-      account_id          = local.account.account_id
-      terraform_user_name = local.config_terraform_user
-    }
-  )
+  override_policy_documents = [
+    templatefile(
+      "${path.module}/policies/terraform-deploy-assume-role.json",
+      {
+        account_id          = local.account.account_id
+        terraform_user_name = local.config_terraform_user
+      }
+    )
+  ]
 }
 
 resource "aws_iam_role" "terraform_deploy_role" {
@@ -28,16 +30,18 @@ resource "aws_iam_role" "terraform_deploy_role" {
 }
 
 data "aws_iam_policy_document" "terraform_deploy_inline" {
-  source_json = templatefile(
-    "${path.module}/policies/terraform-deploy-inline-policy.json",
-    {
-      account_id  = local.account.account_id
-      bucket_name = local.state_bucket_name
-      region      = local.config_region
-      role_name   = local.role_name
-      table_name  = local.lock_table_name
-    }
-  )
+  override_policy_documents = [
+    templatefile(
+      "${path.module}/policies/terraform-deploy-inline-policy.json",
+      {
+        account_id  = local.account.account_id
+        bucket_name = local.state_bucket_name
+        region      = local.config_region
+        role_name   = local.role_name
+        table_name  = local.lock_table_name
+      }
+    )
+  ]
 }
 
 resource "aws_iam_role_policy" "terraform_deploy_role_policy" {
@@ -61,13 +65,15 @@ resource "aws_iam_user" "terraform_user" {
 # IAM User Policy: 最小权限
 # ----------------------------------------
 data "aws_iam_policy_document" "terraform_user" {
-  source_json = templatefile(
-    "${path.module}/policies/terraform-user-assume-role.json",
-    {
-      account_id = local.account.account_id
-      role_name  = local.role_name
-    }
-  )
+  override_policy_documents = [
+    templatefile(
+      "${path.module}/policies/terraform-user-assume-role.json",
+      {
+        account_id = local.account.account_id
+        role_name  = local.role_name
+      }
+    )
+  ]
 }
 
 resource "aws_iam_user_policy" "terraform_user_policy" {

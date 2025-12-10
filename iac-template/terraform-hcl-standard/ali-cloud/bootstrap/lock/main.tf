@@ -23,9 +23,9 @@ provider "alicloud" {
 }
 
 resource "alicloud_ots_instance" "this" {
-  instance_name = var.instance_name
-  description   = "Terraform state locking"
-  accessed_by   = "Any"
+  name        = var.instance_name
+  description = "Terraform state locking"
+  accessed_by = "Any"
 }
 
 resource "alicloud_ots_table" "lock" {
