@@ -7,6 +7,9 @@ locals {
   config_terraform_user   = coalesce(var.terraform_user_name, local.bootstrap.iam.terraform_user_name)
   environment             = coalesce(try(local.bootstrap.environment, null), try(local.bootstrap.iam.environment, null), "bootstrap")
   extra_tags              = try(local.bootstrap.tags, {})
+
+  role_name          = coalesce(var.existing_role_name, local.config_role_name)
+  terraform_user_name = coalesce(var.existing_user_name, local.config_terraform_user)
 }
 
 locals {
