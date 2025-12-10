@@ -9,8 +9,8 @@ terraform {
 
 provider "alicloud" {
   region         = var.region
-  access_key     = coalesce(var.access_key, "mock-access-key")
-  secret_key     = coalesce(var.secret_key, "mock-secret-key")
+  access_key     = var.access_key
+  secret_key     = var.secret_key
   security_token = var.security_token
 
   dynamic "assume_role" {

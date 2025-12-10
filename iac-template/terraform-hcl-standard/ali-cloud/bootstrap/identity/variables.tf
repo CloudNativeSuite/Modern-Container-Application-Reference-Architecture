@@ -8,6 +8,11 @@ variable "access_key" {
   description = "Alibaba Cloud Access Key ID"
   type        = string
   default     = null
+
+  validation {
+    condition     = (var.access_key == null && var.secret_key == null) || (var.access_key != null && var.secret_key != null)
+    error_message = "Provide both access_key and secret_key, or leave both null to rely on environment-sourced credentials."
+  }
 }
 
 variable "secret_key" {
