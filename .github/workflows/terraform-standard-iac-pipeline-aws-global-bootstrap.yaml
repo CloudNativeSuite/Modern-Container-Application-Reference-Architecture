@@ -60,6 +60,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_BOOTSTRAP_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
 
+      - name: Force Destroy Bootstrap Resources
+        if: env.DEPLOY_ACTION == 'destroy'
+        env:
+          CONFIG_PATH: iac-template/terraform-hcl-standard/aws-cloud/config/accounts/bootstrap.yaml
+        run: |
+          ./scripts/aws-bootstrap-force-destroy.sh
+
       - name: Terragrunt Plan
         if: env.DEPLOY_ACTION == 'plan'
         working-directory: ${{ env.TG_ROOT }}
