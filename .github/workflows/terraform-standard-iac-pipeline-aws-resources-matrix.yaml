@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'iac-template/terraform-hcl-standard/aws-cloud/component/ec2/**'
-      - 'iac-template/terraform-hcl-standard/aws-cloud/component/object/**'
+      - 'iac-template/terraform-hcl-standard/aws-cloud/component/s3/**'
       - '.github/workflows/terraform-standard-iac-pipeline-aws-resources-matrix.yaml'
   workflow_dispatch:
     inputs:
