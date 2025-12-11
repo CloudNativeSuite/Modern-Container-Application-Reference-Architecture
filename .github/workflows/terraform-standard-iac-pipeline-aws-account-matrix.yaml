@@ -8,20 +8,20 @@ on:
       - '.github/workflows/terraform-standard-iac-pipeline-aws-account-matrix.yaml'
   workflow_dispatch:
     inputs:
-      dry_run:
+      deploy_action:
         type: choice
-        options: ['true', 'false']
-        default: 'true'
+        options: [plan, apply, destroy]
+        default: plan
 
 env:
   AWS_REGION: ap-northeast-1
   BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/component/
-  DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+  DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
   AWS_ROLE_ARN: arn:aws:iam::950604983695:role/IacDeployRole
 
 jobs:
   terraform:
-    name: "${{ matrix.component }} :: pipeline (dry_run=${{ inputs.dry_run }})"
+    name: "${{ matrix.component }} :: pipeline (action=${{ inputs.deploy_action }})"
     runs-on: ubuntu-latest
 
     strategy:
@@ -61,14 +61,19 @@ jobs:
 
       - name: Apply
         working-directory: ${{ env.BASE_DIR }}/${{ matrix.component }}
-        if: ${{ env.DRY_RUN == 'false' }}
+        if: ${{ env.DEPLOY_ACTION == 'apply' }}
         run: make apply
 
-      - name: Skip Apply (dry-run)
-        if: ${{ env.DRY_RUN == 'true' }}
-        run: echo "Dry run enabled → skip apply step."
+      - name: Destroy
+        working-directory: ${{ env.BASE_DIR }}/${{ matrix.component }}
+        if: ${{ env.DEPLOY_ACTION == 'destroy' }}
+        run: make destroy
+
+      - name: Skip Apply/Destroy
+        if: ${{ env.DEPLOY_ACTION != 'apply' && env.DEPLOY_ACTION != 'destroy' }}
+        run: echo "Action set to plan → skipping apply/destroy steps."
 
       - name: Output
         working-directory: ${{ env.BASE_DIR }}/${{ matrix.component }}
-        if: ${{ env.DRY_RUN == 'false' }}
+        if: ${{ env.DEPLOY_ACTION == 'apply' }}
         run: terraform output -json
