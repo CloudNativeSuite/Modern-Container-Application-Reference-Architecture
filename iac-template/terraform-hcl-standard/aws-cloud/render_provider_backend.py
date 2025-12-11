@@ -13,7 +13,7 @@ CONFIG_DIR = Path(
     os.environ.get("AWS_CLOUD_CONFIG_PATH", PROJECT_ROOT / "aws-cloud" / "config")
 )
 TEMPLATE_DIR = CURRENT_DIR / "templates"
-ENVS_DIR = CURRENT_DIR / "envs"
+ENVS_DIR = CURRENT_DIR / "component"
 
 sys.path.append(str(PROJECT_ROOT / "utils"))
 from config_loader import load_merged_config  # noqa: E402
@@ -71,6 +71,17 @@ def load_account_config(account_name: str, additional_inputs: list[str] | None =
     return load_merged_config(config_inputs)
 
 
+def detect_target_component() -> str | None:
+    """Return the component directory name if running inside one, otherwise None."""
+
+    try:
+        rel_path = Path.cwd().resolve().relative_to(ENVS_DIR)
+    except ValueError:
+        return None
+
+    return rel_path.parts[0] if rel_path.parts else None
+
+
 def render_templates():
     provider_backend_cfg = load_merged_config(CONFIG_DIR / "provider_backend.yaml")
     defaults = provider_backend_cfg.get("defaults", {})
@@ -80,8 +91,16 @@ def render_templates():
     provider_template = env.get_template("provider.tf.j2")
     backend_template = env.get_template("backend.tf.j2")
 
+    target_component = detect_target_component()
+
     for module_name, module_config in modules.items():
-        module_dir = ENVS_DIR / module_name
+        module_dir_name = module_config.get("component_dir") or module_name.split("-", 1)[
+            -1
+        ]
+        module_dir = ENVS_DIR / module_dir_name
+
+        if target_component and module_dir_name != target_component:
+            continue
         if not module_dir.exists():
             print(f"⚠️  Skipping {module_name}: {module_dir} not found")
             continue

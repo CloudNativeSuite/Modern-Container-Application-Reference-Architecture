@@ -36,6 +36,7 @@ modules:
 
   dev-object:
     account: dev
+    component_dir: s3
     backend:
       key: "account/dev/s3/terraform.tfstate"
 
