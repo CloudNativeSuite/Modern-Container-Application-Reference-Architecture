@@ -5,13 +5,17 @@ on:
     paths:
       - 'iac-template/terraform-hcl-standard/aws-cloud/component/ec2/**'
       - 'iac-template/terraform-hcl-standard/aws-cloud/component/object/**'
-      - '.github/workflows/terraform-standard-iac-pipeline-resources-matrix.yaml'
+      - '.github/workflows/terraform-standard-iac-pipeline-aws-resources-matrix.yaml'
   workflow_dispatch:
     inputs:
       dry_run:
         type: choice
         options: ['true', 'false']
         default: 'true'
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/component
@@ -21,7 +25,7 @@ env:
 
 jobs:
   terraform:
-    name: "${{ matrix.env }} :: pipeline (dry_run=${{ inputs.dry_run }})"
+    name: "${{ matrix.component }} :: pipeline (dry_run=${{ inputs.dry_run }})"
     runs-on: ubuntu-latest
 
     strategy:
@@ -44,8 +48,6 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: github-actions
@@ -69,6 +71,6 @@ jobs:
         run: echo "Dry run enabled → skip apply step."
 
       - name: Output
-        working-directory: ${{ env.BASE_DIR }}/${{ matrix.compoent }}
+        working-directory: ${{ env.BASE_DIR }}/${{ matrix.component }}
         if: ${{ env.DRY_RUN == 'false' }}
         run: terraform output -json
