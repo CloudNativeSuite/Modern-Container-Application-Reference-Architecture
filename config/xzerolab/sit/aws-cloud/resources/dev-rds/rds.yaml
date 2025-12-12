@@ -1,0 +1,33 @@
+name_prefix: "dev-rds"
+
+engine: "postgres"
+engine_version: "16.1"
+instance_class: "db.t3.micro"
+
+username: "admin"
+password: "StrongPassword123"
+
+allocated_storage: 20
+max_allocated_storage: 100
+
+multi_az: false
+
+publicly_accessible: false
+
+subnet_ids:
+  - "subnet-0996ad2f8e8f96445"
+  - "subnet-0eaa450d1bb6f65be"
+
+vpc_security_group_ids:
+  - "sg-0ebfd69a09f87af4d"
+
+parameters:
+  - name: "log_min_duration_statement"
+    value: "1000"
+  - name: "log_statement"
+    value: "ddl"
+
+tags:
+  Environment: "dev"
+  Owner: "Platform"
+

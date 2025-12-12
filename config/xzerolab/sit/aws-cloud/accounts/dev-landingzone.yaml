@@ -1,0 +1,9 @@
+region: "ap-northeast-1"
+account_id: "950604983695"
+
+landingzone:
+  console_mode: "readonly"     # 可选：deny / readonly
+  enable_risp_controls: true   # 限制 RI/SP 购买
+  enable_root_limited: true    # 限制 root API
+  enable_mfa_enforce: true     # 强制 MFA
+

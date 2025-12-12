@@ -1,0 +1,10 @@
+bucket_name: "svc-plus-dev-objects"
+
+# 是否开启版本管理（默认建议开启）
+enable_versioning: true
+
+# 是否启用加密，之后如果你想加 KMS 可以扩展
+enable_encryption: false
+
+# Public Access Block（通常建议保持 true）
+block_public_access: true

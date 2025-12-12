@@ -1,0 +1,19 @@
+account_id: 950604983695
+name: dev
+environment: dev
+
+region: ap-northeast-1
+
+role_to_assume: "arn:aws:iam::950604983695:role/IacDeployRole"
+logging_bucket: org-dev-logs
+shared_vpc_account: "950604983695"   # 单账号，所以保持一致
+
+tags:
+  Environment: dev
+  Owner: Platform
+  CostCenter: "DEV"
+  Project: CloudNeutral
+
+backend:
+  bucket: aws-cloud-iac-state
+  dynamodb_table: aws-cloud-iac-state-dynamodb-lock

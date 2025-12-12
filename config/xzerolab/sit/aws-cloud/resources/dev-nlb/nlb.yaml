@@ -1,0 +1,13 @@
+name_prefix: "dev-nlb"
+
+vpc_id: "vpc-0d0d8d822fa215104"
+
+subnet_ids:
+  - "subnet-0c370f7ff7311388e"
+  - "subnet-0b609b5773fe957fa"
+
+listeners:
+  - port: 80
+    protocol: "TCP"
+    target_group_port: 80
+    target_group_protocol: "TCP"

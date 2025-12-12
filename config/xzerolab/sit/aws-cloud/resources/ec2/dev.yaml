@@ -1,0 +1,26 @@
+name_prefix: "dev-ec2"
+
+vpc_id: "vpc-06e1d6dab47b1d35f"
+subnet_id: "subnet-06859ec23046f4556"
+
+instance:
+  type: "t3.micro"
+  ami: "ubuntu-2204"
+
+keypair:
+  name: "dev-key"
+  public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDEsuS135lzjVvlH2iNrKz23lDFr7b686xs4d2HINP2glFPmgkgx1D6Dqwisb1UbhWHZmUUzRxXeNlE8fiaO0TXN/C0dsdUxgopnQRyakcA+gfJqqb38Syx8eqdC7mQy9ygOf763dWm6d/SYZ8WgNWLldk4QF9DiZOW9K22DMtY4/1Cqe/YE/WGpOMVr9T9BwvmOjarjWp2OPbx6RVlSOd735Mze5X+cJ9QqdLaisCiSoJ3j9S6dulcxm+7ghPfATvxlJyZWSrRrVqnmV45lPbeuUHlIEyuK1PK2MS6NtUP03ZhdRYJQKZLECpR5xAO/BliOtDdRornvHV1gutYD8/n3IS8sRVzYPvN9DuOhzBnBQUgciu2++R8zMfdVoH7mSbsE8u++vMcBk3UJ1Op0Ct+trl2bsnue96cAnoiII08JKwAaczD5uZIGhdkGV8zKnChNCjzCxP0i4PV/MYW04eWmH+E8G81zq4ZsvrvPYmilBbRrkwHvvbPba3SSb2F2As= shenlan@shenlandeMacBook-Air-2.local"
+
+security_group:
+  name: "dev-ec2-sg"
+  ssh_cidr: "0.0.0.0/0"
+  additional_ingress:
+    - port: 80
+      protocol: tcp
+      cidr: "0.0.0.0/0"
+    - port: 443
+      protocol: tcp
+      cidr: "0.0.0.0/0"
+    - port: 1443
+      protocol: tcp
+      cidr: "0.0.0.0/0"

@@ -1,0 +1,16 @@
+name_prefix: "dev-kafka"
+
+kafka_version: "3.6.0"
+
+brokers:
+  instance_type: "kafka.t3.small"
+  number_of_broker_nodes: 2
+
+ebs:
+  volume_size: 50
+
+vpc_id: "vpc-0d0d8d822fa215104"
+
+subnet_ids:
+  - "subnet-0c370f7ff7311388e"
+  - "subnet-0b609b5773fe957fa"

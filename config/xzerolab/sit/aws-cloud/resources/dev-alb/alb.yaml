@@ -1,0 +1,19 @@
+name_prefix: "dev-alb"
+
+vpc_id: "vpc-0d0d8d822fa215104"
+
+subnet_ids:
+  - "subnet-0c370f7ff7311388e"
+  - "subnet-0b609b5773fe957fa"
+
+listeners:
+  - port: 80
+    protocol: "HTTP"
+    target_group_port: 80
+    target_group_protocol: "HTTP"
+
+  - port: 443
+    protocol: "HTTPS"
+    certificate_arn: "arn:aws:acm:ap-northeast-1:xxxx:certificate/xxxx-xxxx"
+    target_group_port: 443
+    target_group_protocol: "HTTP"

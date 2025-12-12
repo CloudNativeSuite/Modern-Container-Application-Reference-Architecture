@@ -1,0 +1,13 @@
+name_prefix: "dev-redis"
+
+engine_version: "7.0"
+node_type: "cache.t3.micro"
+num_cache_nodes: 1
+
+subnet_ids:
+  - "subnet-xxxxxx"
+  - "subnet-yyyyyy"
+
+security_group_ids:
+  - "sg-xxxxxx"
+
