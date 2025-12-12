@@ -21,7 +21,7 @@ env:
   BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/component
   AWS_REGION: ap-northeast-1
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
-  AWS_ROLE_ARN: arn:aws:iam::950604983695:role/IacDeployRole
+  AWS_ROLE_ARN: arn:aws:iam::950604983695:role/GithubAction_IAC_Deploy_Role
 
 jobs:
   terraform:
@@ -48,12 +48,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
-          role-session-name: github-actions
-          role-skip-session-tagging: true
 
       - name: Init
         working-directory: ${{ env.BASE_DIR }}/${{ matrix.component }}
