@@ -1,10 +1,13 @@
 # instance/ec2/Makefile
 
 render:
-	python ../../render_provider_backend.py
+	python ../../../utils/render_provider_backend.py \
+		--config-dir ../../config \
+		--template-dir ../../templates \
+		--component-dir .. \
+		--component ec2
 
 init: render
-	python ../../render_provider_backend.py
 	terraform init --upgrade
 
 plan: init

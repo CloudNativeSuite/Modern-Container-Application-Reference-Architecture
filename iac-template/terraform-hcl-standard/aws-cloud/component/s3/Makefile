@@ -1,5 +1,9 @@
 render:
-	python ../../render_provider_backend.py
+	python ../../../utils/render_provider_backend.py \
+		--config-dir ../../config \
+		--template-dir ../../templates \
+		--component-dir .. \
+		--component s3
 
 init: render
 	terraform init --upgrade
@@ -12,4 +16,3 @@ apply: init
 
 destroy: init
 	terraform destroy -auto-approve
-

@@ -1,139 +1,215 @@
 from __future__ import annotations
 
+"""Render provider/backend Terraform files for a single component."""
+
+import argparse
 import os
-import sys
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Dict
+from typing import Iterable, Tuple
 
-from jinja2 import Environment, FileSystemLoader
+import yaml
 
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent
-CONFIG_DIR = Path(
-    os.environ.get("AWS_CLOUD_CONFIG_PATH", PROJECT_ROOT / "aws-cloud" / "config")
-)
-TEMPLATE_DIR = CURRENT_DIR / "templates"
-ENVS_DIR = CURRENT_DIR / "component"
+from renderer import render_file
 
-sys.path.append(str(PROJECT_ROOT / "utils"))
-from config_loader import load_merged_config  # noqa: E402
+DEFAULT_IGNORE_FILES = {"vpn-keys.yaml"}
 
 
-def merge_var(config_files: list[str | Path]) -> Dict:
-    if not config_files:
-        raise ValueError("At least one config file is required")
+def deep_merge(dict1: dict, dict2: Mapping) -> dict:
+    """Recursively merge ``dict2`` into ``dict1`` and return a new dict."""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, Mapping):
+            result[key] = deep_merge(result[key], value)
+        elif key in result and isinstance(result[key], list) and isinstance(value, list):
+            result[key] = result[key] + value
+        else:
+            result[key] = value
+    return result
 
-    config_inputs: list[str] = []
-    for config_file in config_files:
-        path = Path(config_file)
-        if not path.is_absolute():
-            path = CONFIG_DIR / path
+
+def _iter_yaml_files(path: Path, ignore_files: set[str]) -> Iterable[Path]:
+    if path.is_file():
+        if path.suffix in {".yaml", ".yml"} and path.name not in ignore_files:
+            yield path
+        return
+
+    patterns = ["**/*.yaml", "**/*.yml"]
+    seen: set[Path] = set()
+    for pattern in patterns:
+        for file_path in sorted(path.glob(pattern)):
+            if file_path.name in ignore_files or file_path in seen:
+                continue
+            seen.add(file_path)
+            yield file_path
+
+
+def _normalize_inputs(config_inputs: list[str] | str | Path | None) -> list[str]:
+    if config_inputs is None:
+        env_paths = os.environ.get("CONFIG_PATHS") or os.environ.get("CONFIG_PATH")
+        config_inputs = env_paths.split(os.pathsep) if env_paths else ["config"]
+
+    if isinstance(config_inputs, (Path, os.PathLike)):
+        config_inputs = [config_inputs]
+
+    if isinstance(config_inputs, str):
+        config_inputs = [value for value in config_inputs.split(os.pathsep) if value]
+
+    return [str(Path(path).expanduser()) for path in config_inputs]
+
+
+def load_merged_config(config_inputs: list[str] | str | Path | None = None, ignore_files: list[str] | None = None) -> dict:
+    """
+    Load and deep-merge YAML content from multiple files or directories.
+
+    ``config_inputs`` accepts:
+    - A single path string or Path-like
+    - A list of path strings
+    - ``None`` (defaults to environment variable ``CONFIG_PATHS`` / ``CONFIG_PATH`` or ``config``)
+    """
+
+    ignore = DEFAULT_IGNORE_FILES | set(ignore_files or [])
+    merged: dict = {}
+
+    resolved_inputs = _normalize_inputs(config_inputs)
+    if not resolved_inputs:
+        raise ValueError("No configuration inputs provided")
+
+    loaded_paths: list[str] = []
+    for raw_path in resolved_inputs:
+        path = Path(raw_path)
         if not path.exists():
-            raise FileNotFoundError(f"Config file not found: {path}")
-        config_inputs.append(str(path))
+            raise FileNotFoundError(f"❌ 配置路径不存在: {path}")
 
-    return load_merged_config(config_inputs)
+        loaded_paths.append(str(path))
+        for file_path in _iter_yaml_files(path, ignore):
+            with open(file_path, "r", encoding="utf-8") as handle:
+                content = yaml.safe_load(handle) or {}
+                merged = deep_merge(merged, content)
+
+    merged["__config_paths__"] = loaded_paths
+    return merged
 
 
-def detect_target_component() -> str | None:
-    """Return the component directory name if running inside one, otherwise None."""
+def _load_yaml_file(path: Path) -> dict:
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
 
+    with open(path, "r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
+
+
+def _resolve_component_config(component: str, modules: Mapping) -> tuple[str, Mapping]:
+    if component in modules:
+        return component, modules[component]
+
+    for name, module_cfg in modules.items():
+        if module_cfg.get("component_dir") == component:
+            return name, module_cfg
+
+    raise ValueError(f"Component '{component}' not found in provider_backend.yaml")
+
+
+def load_provider_backend_config(component: str, config_dir: str | Path) -> Tuple[dict, dict]:
+    """Load provider/backend variables for a single component.
+
+    Returns a tuple of (provider_vars, backend_vars).
+    """
+
+    config_dir_path = Path(config_dir).expanduser().resolve()
+    provider_backend_path = config_dir_path / "provider_backend.yaml"
+    config = _load_yaml_file(provider_backend_path)
+
+    modules = config.get("modules") or {}
+    defaults = config.get("defaults") or {}
+
+    module_name, module_cfg = _resolve_component_config(component, modules)
+    account_name = module_cfg.get("account")
+    if not account_name:
+        raise ValueError(f"Account is required for component '{module_name}'")
+
+    account_cfg_path = config_dir_path / "accounts" / f"{account_name}.yaml"
+    account_cfg = _load_yaml_file(account_cfg_path)
+
+    provider_vars = {
+        "TF_VERSION": module_cfg.get("terraform_required_version")
+        or defaults.get("terraform_required_version"),
+        "AWS_provider_version": module_cfg.get("aws_provider_version")
+        or defaults.get("aws_provider_version"),
+        "session_name": module_cfg.get("session_name") or defaults.get("session_name"),
+        "region": module_cfg.get("region") or account_cfg.get("region"),
+    }
+
+    backend_cfg = {}
+    backend_cfg.update(account_cfg.get("backend") or {})
+    backend_cfg.update(module_cfg.get("backend") or {})
+    backend_cfg.setdefault("region", provider_vars.get("region"))
+    backend_cfg.setdefault("key", f"{account_name}/{component}/terraform.tfstate")
+
+    if not provider_vars["TF_VERSION"]:
+        raise ValueError(f"Terraform required_version is required for component '{module_name}'")
+    if not provider_vars["AWS_provider_version"]:
+        raise ValueError(f"AWS provider version is required for component '{module_name}'")
+    if not backend_cfg.get("bucket"):
+        raise ValueError(f"Backend bucket is required for component '{module_name}'")
+    if not backend_cfg.get("region"):
+        raise ValueError(f"Backend region is required for component '{module_name}'")
+
+    return provider_vars, backend_cfg
+
+
+def detect_component(component_dir: Path) -> str:
     try:
-        rel_path = Path.cwd().resolve().relative_to(ENVS_DIR)
-    except ValueError:
-        return None
-
-    return rel_path.parts[0] if rel_path.parts else None
+        return Path.cwd().resolve().relative_to(component_dir.resolve()).parts[0]
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError("Component could not be detected automatically. Please pass --component.") from exc
 
 
-def render_templates():
-    config_files = sys.argv[1:] or [CONFIG_DIR / "provider_backend.yaml"]
-    provider_backend_cfg = merge_var(config_files)
-    defaults = provider_backend_cfg.get("defaults") or {}
-    modules = provider_backend_cfg.get("modules") or {}
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Render Terraform provider/backend files")
+    parser.add_argument("--config-dir", required=True, help="Path to the config directory")
+    parser.add_argument(
+        "--template-dir",
+        required=True,
+        help="Path to the directory containing provider/backend templates",
+    )
+    parser.add_argument(
+        "--component-dir",
+        required=True,
+        help="Root directory containing component folders",
+    )
+    parser.add_argument(
+        "--component",
+        help="Component name; if omitted we attempt auto-detection based on CWD",
+    )
+    return parser.parse_args()
 
-    if not modules:
-        raise ValueError("No modules found in configuration")
 
-    env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), keep_trailing_newline=True)
-    provider_template = env.get_template("provider.tf.j2")
-    backend_template = env.get_template("backend.tf.j2")
+def main() -> None:
+    args = parse_args()
 
-    target_component = detect_target_component()
+    component_dir = Path(args.component_dir).resolve()
+    component = args.component or detect_component(component_dir)
 
-    for module_name, module_config in modules.items():
-        module_dir_name = module_config.get("component_dir") or module_name.split("-", 1)[
-            -1
-        ]
-        module_dir = ENVS_DIR / module_dir_name
+    provider_vars, backend_vars = load_provider_backend_config(component, args.config_dir)
 
-        if target_component and module_dir_name != target_component:
-            continue
-        if not module_dir.exists():
-            print(f"⚠️  Skipping {module_name}: {module_dir} not found")
-            continue
+    target_dir = component_dir / component
+    template_dir = Path(args.template_dir)
 
-        account_name = module_config.get("account")
-        if not account_name:
-            raise ValueError(f"Account is required for module {module_name}")
+    render_file(template_dir, "provider.tf.j2", provider_vars, target_dir / "provider.tf")
+    render_file(template_dir, "backend.tf.j2", {"backend": backend_vars}, target_dir / "backend.tf")
 
-        account_config_inputs = [CONFIG_DIR / "accounts" / f"{account_name}.yaml"]
-        account_config_inputs.extend(
-            CONFIG_DIR / path for path in module_config.get("config_inputs", [])
-        )
-        account_config = merge_var(account_config_inputs)
+    optional_templates = [
+        ("variables.tf.j2", target_dir / "variables.tf"),
+        ("outputs.tf.j2", target_dir / "outputs.tf"),
+    ]
+    for template_name, target in optional_templates:
+        template_path = template_dir / template_name
+        if template_path.exists():
+            render_file(template_dir, template_name, provider_vars | {"backend": backend_vars}, target)
 
-        region = module_config.get("region") or account_config.get("region")
-        if not region:
-            raise ValueError(f"Region is required for module {module_name}")
-
-        tf_version = module_config.get("terraform_required_version") or defaults.get(
-            "terraform_required_version"
-        )
-        aws_provider_version = module_config.get("aws_provider_version") or defaults.get(
-            "aws_provider_version"
-        )
-        if not tf_version:
-            raise ValueError(f"Terraform required_version is required for module {module_name}")
-        if not aws_provider_version:
-            raise ValueError(f"AWS provider version is required for module {module_name}")
-
-        backend_overrides = module_config.get("backend", {})
-        backend_bucket = backend_overrides.get("bucket") or account_config.get("backend", {}).get(
-            "bucket"
-        )
-        backend_key = backend_overrides.get("key")
-        backend_region = backend_overrides.get("region") or account_config.get("region")
-        dynamodb_table = backend_overrides.get("dynamodb_table") or account_config.get(
-            "backend", {}
-        ).get("dynamodb_table")
-
-        if not backend_bucket:
-            raise ValueError(f"Backend bucket is required for module {module_name}")
-        if not backend_key:
-            raise ValueError(f"Backend key is required for module {module_name}")
-        if not backend_region:
-            raise ValueError(f"Backend region is required for module {module_name}")
-
-        provider_config = {
-            "TF_VERSION": tf_version,
-            "AWS_provider_version": aws_provider_version,
-            "region": region,
-        }
-        backend_config = {
-            "bucket": backend_bucket,
-            "key": backend_key,
-            "region": backend_region,
-            "dynamodb_table": dynamodb_table,
-        }
-
-        provider_content = provider_template.render(**provider_config)
-        backend_content = backend_template.render(backend=backend_config)
-
-        (module_dir / "provider.tf").write_text(provider_content, encoding="utf-8")
-        (module_dir / "backend.tf").write_text(backend_content, encoding="utf-8")
-        print(f"✅ Rendered provider/backend for {module_name}")
+    print(f"Rendered provider/backend for component '{component}'")
 
 
 if __name__ == "__main__":
-    render_templates()
+    main()

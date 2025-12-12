@@ -1,15 +1,18 @@
 render:
-	python ../../render_provider_backend.py
+	python ../../../utils/render_provider_backend.py \
+		--config-dir ../../config \
+		--template-dir ../../templates \
+		--component-dir .. \
+		--component kafka
 
-init:
+init: render
 	terraform init --upgrade
 
-plan:
+plan: init
 	terraform plan
 
-apply:
+apply: init
 	terraform apply -auto-approve
 
-destroy:
+destroy: init
 	terraform destroy -auto-approve
-
