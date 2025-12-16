@@ -1,11 +1,12 @@
 locals {
-  account = yamldecode(
-    file("${path.root}/../../config/accounts/dev.yaml")
-  )
+  config_files = length(var.config_files) > 0 ? var.config_files : [
+    abspath("${path.root}/../../../../../config/xzerolab/sit/aws-cloud/account/accounts.yaml"),
+    abspath("${path.root}/../../../../../config/xzerolab/sit/aws-cloud/resources/vpc.yaml"),
+  ]
 
-  vpc_conf = yamldecode(
-    file("${path.root}/../../config/resources/vpc/dev.yaml")
-  )
+  account = yamldecode(file(local.config_files[0]))
+
+  vpc_conf = yamldecode(file(local.config_files[1]))
 }
 
 module "vpc" {
