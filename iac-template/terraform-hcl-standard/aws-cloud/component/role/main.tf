@@ -1,6 +1,10 @@
 locals {
+  config_files = length(var.config_files) > 0 ? var.config_files : [
+    abspath("${path.root}/../../../../../config/xzerolab/sit/aws-cloud/account/accounts.yaml"),
+  ]
+
   account = yamldecode(
-    file("${path.root}/../../config/accounts/dev.yaml")
+    file(local.config_files[0])
   )
 }
 
