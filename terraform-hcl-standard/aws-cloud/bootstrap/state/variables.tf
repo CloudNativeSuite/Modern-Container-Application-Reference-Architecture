@@ -13,7 +13,11 @@ variable "region" {
 variable "bootstrap_config_path" {
   description = "Path to the bootstrap account configuration YAML"
   type        = string
-  default     = null
+
+  validation {
+    condition     = var.bootstrap_config_path != null && trim(var.bootstrap_config_path) != ""
+    error_message = "Set bootstrap_config_path to the GitHub Action environment input that points to the bootstrap YAML file."
+  }
 }
 
 variable "config_root" {
