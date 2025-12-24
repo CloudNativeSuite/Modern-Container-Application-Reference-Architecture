@@ -21,7 +21,7 @@ Terragrunt `run-all` handles the ordering; no manual sequencing is required.
 
 - **Data plane**: S3 bucket enforces AES256 SSE, public access block, and versioning. DynamoDB enables server-side encryption and PITR for forensic recovery.
 - **Control plane**: IAM policies are externalized in `identity/policies/*.json` and rendered via `aws_iam_policy_document` to keep Terraform code lean and auditable.
-- **Config source of truth**: The GitOps repo (`https://github.com/cloud-neutral-workshop/gitops.git`) stores `config/accounts/bootstrap.yaml`, defining canonical names, regions, and tags. Terragrunt reads it via `GITOPS_REPO_ROOT` (defaults to `../gitops` relative to this repo).
+- **Config source of truth**: The GitOps repo (`https://github.com/cloud-neutral-workshop/gitops.git`) stores `config/accounts/bootstrap.yaml`, defining canonical names, regions, and tags. Terragrunt reads it via `GITOPS_REPO_ROOT` (defaults to `../gitops` relative to this repo). Clone that repository locally or set `GITOPS_REPO_ROOT` to your desired path to keep configuration and modules separated. You can also override the config file path with `GITOPS_BOOTSTRAP_CONFIG` (for example, `config/xzerolab/sit/aws-cloud/account/bootstrap.yaml` inside the GitOps repo).
 
 ## How to Run with Terragrunt
 
