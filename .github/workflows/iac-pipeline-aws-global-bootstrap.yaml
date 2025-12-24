@@ -35,7 +35,7 @@ env:
   TG_VERSION: 0.67.14
   GITOPS_REPO_ROOT: gitops
   GITOPS_BOOTSTRAP_CONFIG: ${{ github.event.inputs.gitops_bootstrap_config || 'config/xzerolab/sit/aws-cloud/account/bootstrap.yaml' }}
-  BOOTSTRAP_CONFIG_PATH: ${{ format('{0}/{1}/{2}', github.workspace, env.GITOPS_REPO_ROOT, env.GITOPS_BOOTSTRAP_CONFIG) }}
+  BOOTSTRAP_CONFIG_PATH: ${{ env.TG_ROOT }}/${{ env.GITOPS_REPO_ROOT}}/${{ env.GITOPS_BOOTSTRAP_CONFIG) }}
 
 jobs:
   bootstrap:
