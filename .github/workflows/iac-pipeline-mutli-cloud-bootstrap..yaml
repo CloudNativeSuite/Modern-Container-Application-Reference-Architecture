@@ -50,11 +50,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Checkout GitOps config
-        uses: actions/checkout@v4
-        with:
-          path: ${{ env.TG_ROOT }}/gitops
-          repository: ${{ env.GITOPS_REPO }}
-          ref: ${{ github.event.inputs.gitops_repo_ref || 'main' }}
+        run: |
+          git clone --branch "${{ github.event.inputs.gitops_repo_ref || 'main' }}" \
+            --depth 1 "${{ env.GITOPS_REPO }}" "${{ env.TG_ROOT }}/gitops"
 
       - name: Document Bootstrap Scope
         run: |
