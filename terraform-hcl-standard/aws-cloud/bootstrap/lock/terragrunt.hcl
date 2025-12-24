@@ -11,5 +11,8 @@ terraform {
 }
 
 inputs = {
-  bootstrap_config_path = get_env("BOOTSTRAP_CONFIG_PATH", "")
+  bootstrap_config_path = coalesce(
+    get_env("TF_CONFIG", null),
+    get_env("BOOTSTRAP_CONFIG_PATH", "")
+  )
 }
