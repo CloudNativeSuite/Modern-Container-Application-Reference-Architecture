@@ -1,11 +1,12 @@
-name: AWS Cloud IAC Pipeline (Resources Matrix)
+name: AWS Cloud IAC Pipeline (Account/VPC Matrix)
 
 on:
   push:
+  pull_request:
     paths:
-      - 'iac-template/terraform-hcl-standard/aws-cloud/component/ec2/**'
-      - 'iac-template/terraform-hcl-standard/aws-cloud/component/s3/**'
-      - '.github/workflows/terraform-standard-iac-pipeline-aws-resources-matrix.yaml'
+      - '.github/workflows/iac-pipeline-aws-account-matrix.yaml'
+      - 'iac-template/terraform-hcl-standard/aws-cloud/component/vpc/**'
+      - 'iac-template/terraform-hcl-standard/aws-cloud/component/role/**'
   workflow_dispatch:
     inputs:
       deploy_action:
@@ -18,10 +19,11 @@ permissions:
   contents: read
 
 env:
-  BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/component
-  AWS_REGION: ap-northeast-1
+  BASE_DIR: iac-template/terraform-hcl-standard/aws-cloud/component/
   DEPLOY_ACTION: ${{ github.event.inputs.deploy_action || 'plan' }}
-  AWS_ROLE_ARN: arn:aws:iam::950604983695:role/GithubAction_IAC_Deploy_Role
+  CONFIG_FILES: |
+    config/xzerolab/sit/aws-cloud/account/accounts.yaml
+    config/xzerolab/sit/aws-cloud/resources/vpc.yaml
 
 jobs:
   terraform:
@@ -32,8 +34,8 @@ jobs:
       fail-fast: false
       matrix:
         component:
-          - s3
-          - ec2
+          - vpc
+          - role
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +47,26 @@ jobs:
       - uses: terraform-linters/setup-tflint@v4
         with:
           tflint_version: v0.51.0
+
+      - name: Load AWS config
+        run: |
+          ACCOUNT_FILE=$(printf "%s\n" "${CONFIG_FILES}" | head -n 1)
+          python - <<'PY'
+import os
+import sys
+from pathlib import Path
+
+utils_dir = Path("iac-template/terraform-hcl-standard/utils").resolve()
+sys.path.insert(0, str(utils_dir))
+
+from config_loader import load_account_credentials
+
+region, role_arn = load_account_credentials(os.environ["ACCOUNT_FILE"])
+
+with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as handle:
+    handle.write(f"AWS_REGION={region}\n")
+    handle.write(f"AWS_ROLE_ARN={role_arn}\n")
+PY
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:

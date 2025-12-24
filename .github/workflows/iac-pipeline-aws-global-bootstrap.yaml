@@ -6,13 +6,10 @@ concurrency:
 
 on:
   push:
-    paths:
-      - 'iac-template/terraform-hcl-standard/aws-cloud/bootstrap/**'
-      - '.github/workflows/terraform-standard-iac-pipeline-aws-global-bootstrap.yaml'
   pull_request:
     paths:
+      - '.github/workflows/iac-pipeline-aws-global-bootstrap.yaml'
       - 'iac-template/terraform-hcl-standard/aws-cloud/bootstrap/**'
-      - '.github/workflows/terraform-standard-iac-pipeline-aws-global-bootstrap.yaml'
   workflow_dispatch:
     inputs:
       deploy_action:

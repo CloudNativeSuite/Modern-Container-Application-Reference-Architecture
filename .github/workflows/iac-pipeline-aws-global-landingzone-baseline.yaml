@@ -2,9 +2,11 @@ name: AWS Cloud Global LandingZone Baseline
 
 on:
   push:
+  pull_request:
+    paths:
     paths:
       - 'iac-template/terraform-hcl-standard/aws-cloud/**'
-      - '.github/workflows/terraform-standard-iac-pipeline-aws-global-landingzone-baseline.yaml'
+      - '.github/workflows/iac-pipeline-aws-global-landingzone-baseline.yaml'
   pull_request:
     branches: [main]
   workflow_dispatch:
